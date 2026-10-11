@@ -1,0 +1,1388 @@
+openapi: 3.0.3
+info:
+  title: DevTask API
+  version: 1.0.0
+  description: DevTask REST API for high-performance team project & task management.
+    Supports projects, tasks, Kanban boards, role permissions, comments, and analytics.
+paths:
+  /api/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: Authenticate with username and password, creating a secure HTTP
+        session.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+          description: ''
+        '400':
+          description: Invalid request
+        '401':
+          description: Invalid credentials
+  /api/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      description: Log out the current user and invalidate the session.
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Successfully logged out
+  /api/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      description: Retrieve or update the authenticated user's profile.
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+          description: ''
+    patch:
+      operationId: auth_me_partial_update
+      description: Retrieve or update the authenticated user's profile.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateProfile'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateProfile'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateProfile'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+          description: ''
+        '400':
+          description: Validation error
+  /api/auth/register/:
+    post:
+      operationId: auth_register_create
+      description: Register a new user account with validated credentials.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Register'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Register'
+        required: true
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublic'
+          description: ''
+        '400':
+          description: Validation error
+  /api/projects/:
+    get:
+      operationId: projects_list
+      description: List projects accessible to the authenticated user or create a
+        new project.
+      parameters:
+      - in: query
+        name: archived
+        schema:
+          type: boolean
+        description: Include archived projects (true/false)
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search projects by name or description
+      tags:
+      - projects
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+          description: ''
+    post:
+      operationId: projects_create
+      description: List projects accessible to the authenticated user or create a
+        new project.
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+        '400':
+          description: Validation error
+  /api/projects/{project_id}/:
+    get:
+      operationId: projects_retrieve
+      description: Retrieve, update, or permanently delete a specific project workspace.
+      parameters:
+      - in: path
+        name: project_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - projects
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDetail'
+          description: ''
+        '403':
+          description: Access forbidden
+    patch:
+      operationId: projects_partial_update
+      description: Retrieve, update, or permanently delete a specific project workspace.
+      parameters:
+      - in: path
+        name: project_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProjectCreate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDetail'
+          description: ''
+        '403':
+          description: Access forbidden
+    delete:
+      operationId: projects_destroy
+      description: Retrieve, update, or permanently delete a specific project workspace.
+      parameters:
+      - in: path
+        name: project_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - projects
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Deleted
+        '403':
+          description: Access forbidden
+  /api/projects/{project_id}/activity/:
+    get:
+      operationId: projects_activity_list
+      description: Retrieve paginated activity history for the specified project.
+      parameters:
+      - in: path
+        name: project_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - projects
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ActivityLog'
+          description: ''
+  /api/projects/{project_id}/archive/:
+    post:
+      operationId: projects_archive_create
+      description: Archive or unarchive a project.
+      parameters:
+      - in: path
+        name: project_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveProjectAction'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ArchiveProjectAction'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ArchiveProjectAction'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+  /api/projects/{project_id}/members/:
+    get:
+      operationId: projects_members_list
+      description: List project members or add a new team member.
+      parameters:
+      - in: path
+        name: project_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - projects
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectMembership'
+          description: ''
+    post:
+      operationId: projects_members_create
+      description: List project members or add a new team member.
+      parameters:
+      - in: path
+        name: project_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMember'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddMember'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddMember'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectMembership'
+          description: ''
+  /api/projects/{project_id}/members/{membership_id}/:
+    patch:
+      operationId: projects_members_partial_update
+      description: Update role or remove a team member from the project.
+      parameters:
+      - in: path
+        name: membership_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: project_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateMemberRole'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateMemberRole'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateMemberRole'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectMembership'
+          description: ''
+    delete:
+      operationId: projects_members_destroy
+      description: Update role or remove a team member from the project.
+      parameters:
+      - in: path
+        name: membership_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: project_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - projects
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Member removed
+  /api/projects/{project_id}/stats/:
+    get:
+      operationId: projects_stats_retrieve
+      description: Retrieve aggregated project statistics and metrics computed in-database.
+      parameters:
+      - in: path
+        name: project_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - projects
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Project analytics summary
+  /api/projects/{project_id}/transfer-ownership/:
+    post:
+      operationId: projects_transfer_ownership_create
+      description: Transfer ownership of a project to another project member.
+      parameters:
+      - in: path
+        name: project_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferOwnership'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransferOwnership'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransferOwnership'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+          description: ''
+  /api/projects/dashboard-stats/:
+    get:
+      operationId: projects_dashboard_stats_retrieve
+      description: Aggregated developer dashboard KPI metrics computed across all
+        accessible projects.
+      tags:
+      - projects
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Global dashboard metrics
+  /api/tasks/:
+    get:
+      operationId: tasks_list
+      description: List paginated tasks filtered by project, status, priority, or
+        search; or create a new task.
+      parameters:
+      - in: query
+        name: assignee_id
+        schema:
+          type: string
+        description: Filter by assignee user ID or 'unassigned'
+      - in: query
+        name: is_overdue
+        schema:
+          type: boolean
+        description: Filter by overdue status (true/false)
+      - in: query
+        name: ordering
+        schema:
+          type: string
+        description: Order by position, due_date, priority, created_at
+      - in: query
+        name: priority
+        schema:
+          type: string
+        description: Filter by priority (LOW, MEDIUM, HIGH, URGENT)
+      - in: query
+        name: project_id
+        schema:
+          type: string
+        description: Filter by project UUID
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search by title or description
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by status (TODO, IN_PROGRESS, DONE)
+      tags:
+      - tasks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+          description: ''
+    post:
+      operationId: tasks_create
+      description: List paginated tasks filtered by project, status, priority, or
+        search; or create a new task.
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskCreateUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskCreateUpdate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+        '400':
+          description: Validation error
+  /api/tasks/{task_id}/:
+    get:
+      operationId: tasks_retrieve
+      description: Retrieve, update, or delete a task.
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - tasks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+        '403':
+          description: Forbidden
+    patch:
+      operationId: tasks_partial_update
+      description: Retrieve, update, or delete a task.
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskCreateUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskCreateUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskCreateUpdate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    delete:
+      operationId: tasks_destroy
+      description: Retrieve, update, or delete a task.
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - tasks
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: Deleted
+  /api/tasks/{task_id}/comments/:
+    get:
+      operationId: tasks_comments_list
+      description: List comments on a task or post a new comment.
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - tasks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskComment'
+          description: ''
+    post:
+      operationId: tasks_comments_create
+      description: List comments on a task or post a new comment.
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCommentCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskCommentCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskCommentCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskComment'
+          description: ''
+  /api/tasks/{task_id}/reorder/:
+    post:
+      operationId: tasks_reorder_create
+      description: Reorder a task's status and position on the Kanban board.
+      parameters:
+      - in: path
+        name: task_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskReorder'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskReorder'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskReorder'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+components:
+  schemas:
+    ActivityLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        project:
+          type: string
+          format: uuid
+          readOnly: true
+        task:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        task_title:
+          type: string
+          readOnly: true
+        actor:
+          allOf:
+          - $ref: '#/components/schemas/UserPublic'
+          readOnly: true
+        action:
+          allOf:
+          - $ref: '#/components/schemas/ActivityLogActionEnum'
+          readOnly: true
+        metadata:
+          readOnly: true
+          description: Compact JSON payload containing non-sensitive change details
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action
+      - actor
+      - created_at
+      - id
+      - metadata
+      - project
+      - task
+      - task_title
+    ActivityLogActionEnum:
+      enum:
+      - TASK_CREATED
+      - TASK_UPDATED
+      - TASK_DELETED
+      - STATUS_CHANGED
+      - PRIORITY_CHANGED
+      - ASSIGNMENT_CHANGED
+      - COMMENT_ADDED
+      - MEMBER_ADDED
+      - MEMBER_REMOVED
+      - MEMBER_ROLE_CHANGED
+      - PROJECT_UPDATED
+      - PROJECT_ARCHIVED
+      - PROJECT_RESTORED
+      type: string
+      description: |-
+        * `TASK_CREATED` - Task Created
+        * `TASK_UPDATED` - Task Updated
+        * `TASK_DELETED` - Task Deleted
+        * `STATUS_CHANGED` - Status Changed
+        * `PRIORITY_CHANGED` - Priority Changed
+        * `ASSIGNMENT_CHANGED` - Assignment Changed
+        * `COMMENT_ADDED` - Comment Added
+        * `MEMBER_ADDED` - Member Added
+        * `MEMBER_REMOVED` - Member Removed
+        * `MEMBER_ROLE_CHANGED` - Member Role Changed
+        * `PROJECT_UPDATED` - Project Updated
+        * `PROJECT_ARCHIVED` - Project Archived
+        * `PROJECT_RESTORED` - Project Restored
+    AddMember:
+      type: object
+      properties:
+        username_or_email:
+          type: string
+        role:
+          allOf:
+          - $ref: '#/components/schemas/Role883Enum'
+          default: MEMBER
+      required:
+      - username_or_email
+    ArchiveProjectAction:
+      type: object
+      properties:
+        action:
+          allOf:
+          - $ref: '#/components/schemas/ArchiveProjectActionActionEnum'
+          default: archive
+    ArchiveProjectActionActionEnum:
+      enum:
+      - archive
+      - unarchive
+      type: string
+      description: |-
+        * `archive` - archive
+        * `unarchive` - unarchive
+    Login:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - password
+      - username
+    PatchedProjectCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Project display name
+          maxLength: 200
+        description:
+          type: string
+          description: Detailed project description
+    PatchedTaskCreateUpdate:
+      type: object
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          description: Short, descriptive task title
+          maxLength: 255
+        description:
+          type: string
+          description: Detailed task description
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          description: |-
+            Current task column / progress status
+
+            * `TODO` - To Do
+            * `IN_PROGRESS` - In Progress
+            * `DONE` - Done
+        priority:
+          allOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          description: |-
+            Priority level
+
+            * `LOW` - Low
+            * `MEDIUM` - Medium
+            * `HIGH` - High
+            * `URGENT` - Urgent
+        assignee_id:
+          type: integer
+          nullable: true
+        due_date:
+          type: string
+          format: date
+          nullable: true
+          description: Target completion date
+        position:
+          type: number
+          format: double
+          description: Card ordering index within column
+    PatchedUpdateMemberRole:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/Role883Enum'
+    PatchedUpdateProfile:
+      type: object
+      properties:
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        display_name:
+          type: string
+        bio:
+          type: string
+        avatar_color:
+          type: string
+    PriorityEnum:
+      enum:
+      - LOW
+      - MEDIUM
+      - HIGH
+      - URGENT
+      type: string
+      description: |-
+        * `LOW` - Low
+        * `MEDIUM` - Medium
+        * `HIGH` - High
+        * `URGENT` - Urgent
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          description: Project display name
+          maxLength: 200
+        description:
+          type: string
+          description: Detailed project description
+        owner:
+          allOf:
+          - $ref: '#/components/schemas/UserPublic'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        archived_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Timestamp when project was archived
+        members_count:
+          type: integer
+          readOnly: true
+          default: 0
+        tasks_count:
+          type: integer
+          readOnly: true
+          default: 0
+        completed_tasks_count:
+          type: integer
+          readOnly: true
+          default: 0
+        current_user_role:
+          type: string
+          nullable: true
+          readOnly: true
+      required:
+      - archived_at
+      - completed_tasks_count
+      - created_at
+      - current_user_role
+      - id
+      - members_count
+      - name
+      - owner
+      - tasks_count
+      - updated_at
+    ProjectCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Project display name
+          maxLength: 200
+        description:
+          type: string
+          description: Detailed project description
+      required:
+      - name
+    ProjectDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          description: Project display name
+          maxLength: 200
+        description:
+          type: string
+          description: Detailed project description
+        owner:
+          allOf:
+          - $ref: '#/components/schemas/UserPublic'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        archived_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Timestamp when project was archived
+        members_count:
+          type: integer
+          readOnly: true
+          default: 0
+        tasks_count:
+          type: integer
+          readOnly: true
+          default: 0
+        completed_tasks_count:
+          type: integer
+          readOnly: true
+          default: 0
+        current_user_role:
+          type: string
+          nullable: true
+          readOnly: true
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectMembership'
+          readOnly: true
+      required:
+      - archived_at
+      - completed_tasks_count
+      - created_at
+      - current_user_role
+      - id
+      - members
+      - members_count
+      - name
+      - owner
+      - tasks_count
+      - updated_at
+    ProjectMembership:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/UserPublic'
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/Role883Enum'
+          description: |-
+            Role-based permission level in this project
+
+            * `OWNER` - Owner
+            * `MANAGER` - Manager
+            * `MEMBER` - Member
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - id
+      - joined_at
+      - user
+    Register:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+        password_confirm:
+          type: string
+          writeOnly: true
+        display_name:
+          type: string
+          maxLength: 150
+      required:
+      - email
+      - password
+      - password_confirm
+      - username
+    Role883Enum:
+      enum:
+      - MANAGER
+      - MEMBER
+      type: string
+      description: |-
+        * `MANAGER` - Manager
+        * `MEMBER` - Member
+    StatusEnum:
+      enum:
+      - TODO
+      - IN_PROGRESS
+      - DONE
+      type: string
+      description: |-
+        * `TODO` - To Do
+        * `IN_PROGRESS` - In Progress
+        * `DONE` - Done
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        project:
+          type: string
+          format: uuid
+          description: Project to which this task belongs
+        project_name:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          description: Short, descriptive task title
+          maxLength: 255
+        description:
+          type: string
+          description: Detailed task description
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          description: |-
+            Current task column / progress status
+
+            * `TODO` - To Do
+            * `IN_PROGRESS` - In Progress
+            * `DONE` - Done
+        priority:
+          allOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          description: |-
+            Priority level
+
+            * `LOW` - Low
+            * `MEDIUM` - Medium
+            * `HIGH` - High
+            * `URGENT` - Urgent
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/UserPublic'
+          readOnly: true
+        assignee:
+          allOf:
+          - $ref: '#/components/schemas/UserPublic'
+          readOnly: true
+        due_date:
+          type: string
+          format: date
+          nullable: true
+          description: Target completion date
+        position:
+          type: number
+          format: double
+          description: Card ordering index within column
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Timestamp when the task was moved to DONE
+        comments_count:
+          type: integer
+          readOnly: true
+          default: 0
+        is_overdue:
+          type: boolean
+          readOnly: true
+      required:
+      - assignee
+      - comments_count
+      - completed_at
+      - created_at
+      - created_by
+      - id
+      - is_overdue
+      - project
+      - project_name
+      - title
+      - updated_at
+    TaskComment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        task:
+          type: string
+          format: uuid
+          readOnly: true
+        author:
+          allOf:
+          - $ref: '#/components/schemas/UserPublic'
+          readOnly: true
+        body:
+          type: string
+          description: Comment text content
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - author
+      - body
+      - created_at
+      - id
+      - task
+      - updated_at
+    TaskCommentCreate:
+      type: object
+      properties:
+        body:
+          type: string
+          description: Comment text content
+      required:
+      - body
+    TaskCreateUpdate:
+      type: object
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          description: Short, descriptive task title
+          maxLength: 255
+        description:
+          type: string
+          description: Detailed task description
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          description: |-
+            Current task column / progress status
+
+            * `TODO` - To Do
+            * `IN_PROGRESS` - In Progress
+            * `DONE` - Done
+        priority:
+          allOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          description: |-
+            Priority level
+
+            * `LOW` - Low
+            * `MEDIUM` - Medium
+            * `HIGH` - High
+            * `URGENT` - Urgent
+        assignee_id:
+          type: integer
+          nullable: true
+        due_date:
+          type: string
+          format: date
+          nullable: true
+          description: Target completion date
+        position:
+          type: number
+          format: double
+          description: Card ordering index within column
+      required:
+      - title
+    TaskReorder:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        position:
+          type: number
+          format: double
+      required:
+      - position
+      - status
+    TransferOwnership:
+      type: object
+      properties:
+        new_owner_id:
+          type: integer
+      required:
+      - new_owner_id
+    UserPublic:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        display_name:
+          type: string
+          readOnly: true
+        avatar_color:
+          type: string
+          readOnly: true
+      required:
+      - avatar_color
+      - display_name
+      - id
+      - username
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid

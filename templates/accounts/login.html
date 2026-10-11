@@ -1,0 +1,109 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — DevTask</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="{% static 'css/theme.css' %}" rel="stylesheet">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 20%, #161c29 0%, #090b10 80%);
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 420px;
+      padding: 2.25rem;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-medium);
+      border-radius: 16px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-card">
+    <div class="text-center mb-4">
+      <div class="brand-icon-box mx-auto mb-3" style="width: 44px; height: 44px; font-size: 1.35rem;">
+        <i class="bi bi-kanban"></i>
+      </div>
+      <h4 class="fw-bold mb-1" style="color: #fff;">Welcome to DevTask</h4>
+      <p class="text-muted small">High-performance project management for developer teams</p>
+    </div>
+
+    <div id="authErrorBox" class="alert alert-danger d-none py-2 px-3 small mb-3"></div>
+
+    <form id="loginForm">
+      <div class="mb-3">
+        <label for="username" class="form-label small fw-semibold text-secondary">Username or Email</label>
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border-secondary-subtle text-muted">
+            <i class="bi bi-person"></i>
+          </span>
+          <input type="text" id="username" class="form-control form-control-devtask" placeholder="e.g. alice" required autofocus>
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label for="password" class="form-label small fw-semibold text-secondary mb-0">Password</label>
+        </div>
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border-secondary-subtle text-muted">
+            <i class="bi bi-lock"></i>
+          </span>
+          <input type="password" id="password" class="form-control form-control-devtask" placeholder="••••••••" required>
+          <button class="btn btn-outline-secondary border-secondary-subtle toggle-password-btn" type="button" data-target="password">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-devtask-primary w-100 py-2 justify-content-center fw-semibold mb-3">
+        Sign In
+      </button>
+
+      <div class="text-center small text-secondary">
+        Don't have an account?
+        <a href="{% url 'accounts:register' %}" class="text-primary text-decoration-none fw-semibold">Register here</a>
+      </div>
+    </form>
+
+    <!-- Quick Seed Accounts Hint -->
+    <div class="mt-4 pt-3 border-top border-secondary-subtle text-center">
+      <div class="text-muted small mb-2" style="font-size: 0.78rem;">Quick Demo Logins (Click to autofill):</div>
+      <div class="d-flex justify-content-center gap-2">
+        <button type="button" class="btn btn-sm btn-devtask-secondary py-1 px-2" style="font-size: 0.75rem;" onclick="autofill('alice', 'DevTask123!')">
+          Alice (Owner)
+        </button>
+        <button type="button" class="btn btn-sm btn-devtask-secondary py-1 px-2" style="font-size: 0.75rem;" onclick="autofill('bob', 'DevTask123!')">
+          Bob (Manager)
+        </button>
+        <button type="button" class="btn btn-sm btn-devtask-secondary py-1 px-2" style="font-size: 0.75rem;" onclick="autofill('admin', 'AdminPass123!')">
+          Admin
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="{% static 'js/api.js' %}"></script>
+  <script src="{% static 'js/auth.js' %}"></script>
+  <script>
+    function autofill(user, pass) {
+      document.getElementById('username').value = user;
+      document.getElementById('password').value = pass;
+    }
+  </script>
+</body>
+</html>

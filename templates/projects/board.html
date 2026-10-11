@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ project.name }} — DevTask Board{% endblock %}
+
+{% block breadcrumbs %}
+  <a href="{% url 'projects:projects-list' %}" class="text-decoration-none text-secondary">Projects</a>
+  <span class="mx-2 text-muted">/</span>
+  <span class="text-light fw-semibold">{{ project.name }}</span>
+{% endblock %}
+
+{% block topbar_actions %}
+  <button class="btn btn-sm btn-devtask-secondary" id="openTeamDrawerBtn">
+    <i class="bi bi-people"></i>
+    <span>Team (<span id="teamCountBadge">--</span>)</span>
+  </button>
+  <button class="btn btn-sm btn-devtask-secondary" id="openActivityDrawerBtn">
+    <i class="bi bi-activity"></i>
+    <span>Activity</span>
+  </button>
+  <button class="btn btn-sm btn-devtask-primary" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+    <i class="bi bi-plus-lg"></i>
+    <span>Add Task</span>
+  </button>
+{% endblock %}
+
+{% block content %}
+<input type="hidden" id="currentProjectId" value="{{ project.id }}">
+
+<div class="container-fluid p-0">
+  <!-- Project Banner & Filter Header -->
+  <div class="card-devtask mb-4">
+    <div class="card-devtask-body py-3">
+      <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
+        <!-- Project Title & Members summary -->
+        <div>
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <h4 class="fw-bold text-light mb-0" id="projectTitleHeader">{{ project.name }}</h4>
+            {% if project.is_archived %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle small">Archived</span>
+            {% endif %}
+          </div>
+          <p class="text-muted small mb-0">{{ project.description|default:"Task board and workflow." }}</p>
+        </div>
+
+        <!-- Filter & Search Controls -->
+        <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-lg-auto">
+          <!-- Search input -->
+          <div class="input-group" style="max-width: 220px;">
+            <span class="input-group-text bg-transparent border-secondary-subtle text-muted py-1 px-2">
+              <i class="bi bi-search"></i>
+            </span>
+            <input type="text" id="boardSearchInput" class="form-control form-control-devtask py-1 px-2 small" placeholder="Search tasks...">
+          </div>
+
+          <!-- Priority Filter -->
+          <select id="boardPriorityFilter" class="form-select form-select-devtask py-1 px-2 small" style="width: auto;">
+            <option value="">All Priorities</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="URGENT">Urgent</option>
+          </select>
+
+          <!-- Assignee Filter -->
+          <select id="boardAssigneeFilter" class="form-select form-select-devtask py-1 px-2 small" style="width: auto;">
+            <option value="">All Assignees</option>
+            <option value="unassigned">Unassigned</option>
+            <!-- Member options loaded dynamically -->
+          </select>
+
+          <!-- Sort Filter -->
+          <select id="boardSortFilter" class="form-select form-select-devtask py-1 px-2 small" style="width: auto;">
+            <option value="position">Manual Board Order</option>
+            <option value="due_date">Due Date (Earliest)</option>
+            <option value="-priority">Priority (High to Low)</option>
+            <option value="-updated_at">Recently Updated</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Real-time sync status indicator -->
+  <div id="syncStatusIndicator" class="d-flex align-items-center gap-2 small text-muted mb-2 px-1" style="font-size: 0.78rem;">
+    <span class="spinner-grow spinner-grow-sm text-primary d-none" id="syncSpinner" style="width: 8px; height: 8px;"></span>
+    <span id="syncStatusText"><i class="bi bi-check2 text-success me-1"></i>Board synced with server</span>
+  </div>
+
+  <!-- 3-Column Kanban Board -->
+  <div class="kanban-board-container">
+    <!-- To Do Column -->
+    <div class="kanban-column" id="colContainer-TODO">
+      <div class="kanban-column-header">
+        <div class="column-title-wrap">
+          <span class="column-dot todo"></span>
+          <span>To Do</span>
+          <span class="badge bg-secondary-subtle text-secondary rounded-pill small ms-1" id="count-TODO">0</span>
+        </div>
+        <button class="btn btn-sm btn-link text-muted p-0" title="Add task to To Do" onclick="openCreateTaskModalWithStatus('TODO')">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+      </div>
+      <div class="kanban-drop-zone" id="col-TODO" data-status="TODO">
+        <div class="text-center text-muted py-4 small">Loading tasks...</div>
+      </div>
+    </div>
+
+    <!-- In Progress Column -->
+    <div class="kanban-column" id="colContainer-IN_PROGRESS">
+      <div class="kanban-column-header">
+        <div class="column-title-wrap">
+          <span class="column-dot in_progress"></span>
+          <span>In Progress</span>
+          <span class="badge bg-secondary-subtle text-secondary rounded-pill small ms-1" id="count-IN_PROGRESS">0</span>
+        </div>
+        <button class="btn btn-sm btn-link text-muted p-0" title="Add task to In Progress" onclick="openCreateTaskModalWithStatus('IN_PROGRESS')">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+      </div>
+      <div class="kanban-drop-zone" id="col-IN_PROGRESS" data-status="IN_PROGRESS">
+        <div class="text-center text-muted py-4 small">Loading tasks...</div>
+      </div>
+    </div>
+
+    <!-- Done Column -->
+    <div class="kanban-column" id="colContainer-DONE">
+      <div class="kanban-column-header">
+        <div class="column-title-wrap">
+          <span class="column-dot done"></span>
+          <span>Done</span>
+          <span class="badge bg-secondary-subtle text-secondary rounded-pill small ms-1" id="count-DONE">0</span>
+        </div>
+        <button class="btn btn-sm btn-link text-muted p-0" title="Add task to Done" onclick="openCreateTaskModalWithStatus('DONE')">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+      </div>
+      <div class="kanban-drop-zone" id="col-DONE" data-status="DONE">
+        <div class="text-center text-muted py-4 small">Loading tasks...</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Create Task Modal -->
+<div class="modal fade" id="createTaskModal" tabindex="-1" aria-labelledby="createTaskModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content modal-content-devtask">
+      <div class="modal-header modal-header-devtask">
+        <h5 class="modal-title fw-bold" id="createTaskModalLabel">New Task</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="createTaskForm">
+        <div class="modal-body modal-body-devtask">
+          <div class="mb-3">
+            <label for="taskTitleInput" class="form-label small fw-semibold text-secondary">Title *</label>
+            <input type="text" id="taskTitleInput" class="form-control form-control-devtask" placeholder="e.g. Implement resilient auth throttling" required autofocus>
+          </div>
+
+          <div class="mb-3">
+            <label for="taskDescInput" class="form-label small fw-semibold text-secondary">Description</label>
+            <textarea id="taskDescInput" class="form-control form-control-devtask" rows="3" placeholder="Task details and acceptance criteria..."></textarea>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-md-6">
+              <label for="taskStatusSelect" class="form-label small fw-semibold text-secondary">Column</label>
+              <select id="taskStatusSelect" class="form-select form-select-devtask">
+                <option value="TODO">To Do</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="DONE">Done</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="taskPrioritySelect" class="form-label small fw-semibold text-secondary">Priority</label>
+              <select id="taskPrioritySelect" class="form-select form-select-devtask">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM" selected>Medium</option>
+                <option value="HIGH">High</option>
+                <option value="URGENT">Urgent</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label for="taskAssigneeSelect" class="form-label small fw-semibold text-secondary">Assignee</label>
+              <select id="taskAssigneeSelect" class="form-select form-select-devtask">
+                <option value="">Unassigned</option>
+                <!-- Project members injected dynamically -->
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="taskDueDateInput" class="form-label small fw-semibold text-secondary">Due Date</label>
+              <input type="date" id="taskDueDateInput" class="form-control form-control-devtask">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer modal-footer-devtask">
+          <button type="button" class="btn btn-devtask-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-devtask-primary">Create Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Task Detail & Comments Drawer (Offcanvas) -->
+<div class="offcanvas offcanvas-end offcanvas-devtask" tabindex="-1" id="taskDetailDrawer" aria-labelledby="taskDetailDrawerLabel">
+  <div class="offcanvas-header border-bottom border-secondary-subtle py-3 px-4">
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge-prio" id="drawerTaskPrioBadge">MEDIUM</span>
+      <span class="small text-muted" id="drawerTaskIdLabel">TASK-ID</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <button class="btn btn-sm btn-link text-danger p-1" id="drawerDeleteTaskBtn" title="Delete Task">
+        <i class="bi bi-trash3 fs-6"></i>
+      </button>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+  </div>
+
+  <div class="offcanvas-body p-4 d-flex flex-column gap-3 overflow-y-auto">
+    <!-- Task Editable Title -->
+    <div>
+      <input type="text" id="drawerTaskTitleInput" class="form-control form-control-devtask fw-bold fs-5 mb-2" style="background: transparent;">
+    </div>
+
+    <!-- Quick Attributes Grid -->
+    <div class="row g-2 p-3 rounded-3" style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle);">
+      <div class="col-6">
+        <label class="form-label text-muted small mb-1" style="font-size: 0.72rem;">STATUS</label>
+        <select id="drawerTaskStatusSelect" class="form-select form-select-devtask py-1 small">
+          <option value="TODO">To Do</option>
+          <option value="IN_PROGRESS">In Progress</option>
+          <option value="DONE">Done</option>
+        </select>
+      </div>
+
+      <div class="col-6">
+        <label class="form-label text-muted small mb-1" style="font-size: 0.72rem;">PRIORITY</label>
+        <select id="drawerTaskPrioritySelect" class="form-select form-select-devtask py-1 small">
+          <option value="LOW">Low</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="HIGH">High</option>
+          <option value="URGENT">Urgent</option>
+        </select>
+      </div>
+
+      <div class="col-6 mt-2">
+        <label class="form-label text-muted small mb-1" style="font-size: 0.72rem;">ASSIGNEE</label>
+        <select id="drawerTaskAssigneeSelect" class="form-select form-select-devtask py-1 small">
+          <option value="">Unassigned</option>
+        </select>
+      </div>
+
+      <div class="col-6 mt-2">
+        <label class="form-label text-muted small mb-1" style="font-size: 0.72rem;">DUE DATE</label>
+        <input type="date" id="drawerTaskDueDateInput" class="form-control form-control-devtask py-1 small">
+      </div>
+    </div>
+
+    <!-- Description -->
+    <div>
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <label class="form-label small fw-semibold text-secondary mb-0">Description</label>
+        <button class="btn btn-sm btn-link text-primary text-decoration-none p-0 small" id="drawerSaveDescBtn">
+          Save description
+        </button>
+      </div>
+      <textarea id="drawerTaskDescTextarea" class="form-control form-control-devtask small" rows="4" placeholder="Add description..."></textarea>
+    </div>
+
+    <!-- Tabs: Comments vs Activity -->
+    <div class="mt-2">
+      <ul class="nav nav-tabs border-secondary-subtle mb-3" id="taskDrawerTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active small text-light bg-transparent py-1 px-3 border-0 border-bottom border-primary border-2" id="comments-tab" data-bs-toggle="tab" data-bs-target="#comments-tab-pane" type="button" role="tab">
+            Comments (<span id="drawerCommentCount">0</span>)
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content" id="taskDrawerTabContent">
+        <!-- Comments Pane -->
+        <div class="tab-pane fade show active" id="comments-tab-pane" role="tabpanel">
+          <!-- Post Comment Form -->
+          <form id="drawerPostCommentForm" class="mb-3">
+            <div class="mb-2">
+              <textarea id="drawerCommentInput" class="form-control form-control-devtask small" rows="2" placeholder="Write a comment..." required></textarea>
+            </div>
+            <div class="d-flex justify-content-end">
+              <button type="submit" class="btn btn-devtask-primary btn-sm py-1 px-3">Comment</button>
+            </div>
+          </form>
+
+          <!-- Comment Stream -->
+          <div id="drawerCommentsStream" class="d-flex flex-column gap-2">
+            <div class="text-center text-muted small py-3">Loading comments...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Team Management Drawer (Offcanvas) -->
+<div class="offcanvas offcanvas-end offcanvas-devtask" tabindex="-1" id="teamDrawer" aria-labelledby="teamDrawerLabel">
+  <div class="offcanvas-header border-bottom border-secondary-subtle py-3 px-4">
+    <h5 class="offcanvas-title fw-bold text-light" id="teamDrawerLabel">Project Team</h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body p-4 d-flex flex-column gap-4 overflow-y-auto">
+    <!-- Add Member Card -->
+    <div class="p-3 rounded-3" style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle);">
+      <h6 class="fw-semibold text-light mb-2 small">Invite Team Member</h6>
+      <form id="addMemberForm">
+        <div class="row g-2 mb-2">
+          <div class="col-8">
+            <input type="text" id="addMemberInput" class="form-control form-control-devtask small" placeholder="Username or email" required>
+          </div>
+          <div class="col-4">
+            <select id="addMemberRoleSelect" class="form-select form-select-devtask small">
+              <option value="MEMBER">Member</option>
+              <option value="MANAGER">Manager</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-devtask-primary btn-sm w-100 py-1">Add to Project</button>
+      </form>
+    </div>
+
+    <!-- Members List -->
+    <div>
+      <h6 class="fw-semibold text-secondary small mb-3">Project Members</h6>
+      <div id="membersListContainer" class="d-flex flex-column gap-2">
+        <div class="text-center text-muted small py-3">Loading team...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Project Activity Drawer (Offcanvas) -->
+<div class="offcanvas offcanvas-end offcanvas-devtask" tabindex="-1" id="activityDrawer" aria-labelledby="activityDrawerLabel">
+  <div class="offcanvas-header border-bottom border-secondary-subtle py-3 px-4">
+    <h5 class="offcanvas-title fw-bold text-light" id="activityDrawerLabel">Project Audit & Activity</h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body p-4 overflow-y-auto">
+    <div id="activityStreamContainer" class="d-flex flex-column">
+      <div class="text-center text-muted small py-4">Loading activity stream...</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/board.js' %}"></script>
+{% endblock %}

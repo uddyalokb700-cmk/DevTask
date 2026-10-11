@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard — DevTask{% endblock %}
+
+{% block breadcrumbs %}Dashboard / Overview{% endblock %}
+
+{% block topbar_actions %}
+  <a href="{% url 'projects:projects-list' %}" class="btn btn-sm btn-devtask-primary">
+    <i class="bi bi-plus-lg"></i>
+    <span>New Project</span>
+  </a>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+  <!-- Page Header -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+      <h3 class="fw-bold mb-1" style="color: #fff; letter-spacing: -0.02em;">Engineering Overview</h3>
+      <p class="text-muted small mb-0">High-level activity, deadlines, and project health metrics.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-sm btn-devtask-secondary" id="refreshDashboardBtn" title="Refresh metrics">
+        <i class="bi bi-arrow-clockwise"></i>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Metric Cards Grid -->
+  <div class="row g-3 mb-4">
+    <!-- Active Projects -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="metric-card">
+        <div class="metric-icon-wrap" style="color: #3b82f6;">
+          <i class="bi bi-folder2"></i>
+        </div>
+        <div>
+          <div class="metric-value" id="kpiActiveProjects">--</div>
+          <div class="metric-label">Active Projects</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Open Tasks -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="metric-card">
+        <div class="metric-icon-wrap" style="color: #38bdf8;">
+          <i class="bi bi-check2-circle"></i>
+        </div>
+        <div>
+          <div class="metric-value" id="kpiOpenTasks">--</div>
+          <div class="metric-label">Open Tasks</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Assigned to Me -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="metric-card">
+        <div class="metric-icon-wrap" style="color: #a855f7;">
+          <i class="bi bi-person-check"></i>
+        </div>
+        <div>
+          <div class="metric-value" id="kpiMyTasks">--</div>
+          <div class="metric-label">Assigned To Me</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overdue Tasks -->
+    <div class="col-sm-6 col-xl-3">
+      <div class="metric-card">
+        <div class="metric-icon-wrap" style="color: #ef4444;">
+          <i class="bi bi-exclamation-octagon"></i>
+        </div>
+        <div>
+          <div class="metric-value" id="kpiOverdueTasks">--</div>
+          <div class="metric-label">Overdue Tasks</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analytics Charts & Status Row -->
+  <div class="row g-3 mb-4">
+    <!-- Task Completion & Status Distribution Chart -->
+    <div class="col-lg-8">
+      <div class="card-devtask h-100">
+        <div class="card-devtask-header">
+          <div class="fw-semibold small d-flex align-items-center gap-2">
+            <i class="bi bi-pie-chart text-primary"></i>
+            <span>Task Distribution & Progress</span>
+          </div>
+          <div class="small text-muted" id="completionRateText">Completion: --%</div>
+        </div>
+        <div class="card-devtask-body d-flex flex-column justify-content-center" style="min-height: 280px;">
+          <div class="row align-items-center">
+            <div class="col-md-7 d-flex justify-content-center">
+              <div style="position: relative; height: 220px; width: 220px;">
+                <canvas id="statusChart"></canvas>
+              </div>
+            </div>
+            <div class="col-md-5">
+              <div class="d-flex flex-column gap-3 mt-3 mt-md-0" id="statusChartLegend">
+                <div class="d-flex align-items-center justify-content-between p-2 rounded" style="background: var(--bg-surface-elevated);">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="column-dot todo"></span>
+                    <span class="small">To Do</span>
+                  </div>
+                  <span class="fw-bold small" id="chartTodoCount">0</span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between p-2 rounded" style="background: var(--bg-surface-elevated);">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="column-dot in_progress"></span>
+                    <span class="small">In Progress</span>
+                  </div>
+                  <span class="fw-bold small" id="chartInProgressCount">0</span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between p-2 rounded" style="background: var(--bg-surface-elevated);">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="column-dot done"></span>
+                    <span class="small">Done</span>
+                  </div>
+                  <span class="fw-bold small text-success" id="chartDoneCount">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Priority Breakdown -->
+    <div class="col-lg-4">
+      <div class="card-devtask h-100">
+        <div class="card-devtask-header">
+          <div class="fw-semibold small d-flex align-items-center gap-2">
+            <i class="bi bi-flag text-warning"></i>
+            <span>Task Priorities</span>
+          </div>
+        </div>
+        <div class="card-devtask-body d-flex flex-column justify-content-center">
+          <div style="position: relative; height: 210px;">
+            <canvas id="priorityChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tables Row: Upcoming Deadlines & Recent Projects -->
+  <div class="row g-3">
+    <!-- Upcoming Deadlines -->
+    <div class="col-lg-6">
+      <div class="card-devtask h-100">
+        <div class="card-devtask-header">
+          <div class="fw-semibold small d-flex align-items-center gap-2">
+            <i class="bi bi-calendar-event text-danger"></i>
+            <span>Upcoming Deadlines</span>
+          </div>
+          <a href="{% url 'tasks:tasks-list' %}" class="small text-decoration-none text-muted">View all tasks →</a>
+        </div>
+        <div class="card-devtask-body p-0">
+          <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle" style="background: transparent;">
+              <thead>
+                <tr class="text-muted small border-bottom border-secondary-subtle">
+                  <th class="ps-3 py-2">Task</th>
+                  <th class="py-2">Project</th>
+                  <th class="py-2">Due Date</th>
+                  <th class="pe-3 py-2 text-end">Assignee</th>
+                </tr>
+              </thead>
+              <tbody id="upcomingDeadlinesTbody">
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-4 small">
+                    <span class="spinner-border spinner-border-sm me-2"></span>Loading deadlines...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recently Updated Projects -->
+    <div class="col-lg-6">
+      <div class="card-devtask h-100">
+        <div class="card-devtask-header">
+          <div class="fw-semibold small d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history text-info"></i>
+            <span>Recently Active Projects</span>
+          </div>
+          <a href="{% url 'projects:projects-list' %}" class="small text-decoration-none text-muted">View all projects →</a>
+        </div>
+        <div class="card-devtask-body p-0">
+          <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0 align-middle" style="background: transparent;">
+              <thead>
+                <tr class="text-muted small border-bottom border-secondary-subtle">
+                  <th class="ps-3 py-2">Project</th>
+                  <th class="py-2">Progress</th>
+                  <th class="pe-3 py-2 text-end">Action</th>
+                </tr>
+              </thead>
+              <tbody id="recentProjectsTbody">
+                <tr>
+                  <td colspan="3" class="text-center text-muted py-4 small">
+                    <span class="spinner-border spinner-border-sm me-2"></span>Loading projects...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js 4 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

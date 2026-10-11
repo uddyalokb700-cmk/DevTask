@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}All Tasks — DevTask{% endblock %}
+
+{% block breadcrumbs %}Workspace / All Tasks{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+  <!-- Header Bar -->
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+      <h3 class="fw-bold mb-1" style="color: #fff; letter-spacing: -0.02em;">All Tasks</h3>
+      <p class="text-muted small mb-0">Cross-project task tracker, assignments, and milestones.</p>
+    </div>
+  </div>
+
+  <!-- Filters Toolbar -->
+  <div class="card-devtask mb-4">
+    <div class="card-devtask-body py-3">
+      <div class="row g-2 align-items-center">
+        <!-- Search -->
+        <div class="col-md-3">
+          <div class="input-group">
+            <span class="input-group-text bg-transparent border-secondary-subtle text-muted py-1 px-2">
+              <i class="bi bi-search"></i>
+            </span>
+            <input type="text" id="taskSearchInput" class="form-control form-control-devtask py-1 px-2 small" placeholder="Search tasks...">
+          </div>
+        </div>
+
+        <!-- Project Filter -->
+        <div class="col-md-3">
+          <select id="taskProjectFilter" class="form-select form-select-devtask py-1 px-2 small">
+            <option value="">All Projects</option>
+          </select>
+        </div>
+
+        <!-- Status Filter -->
+        <div class="col-md-2">
+          <select id="taskStatusFilter" class="form-select form-select-devtask py-1 px-2 small">
+            <option value="">All Statuses</option>
+            <option value="TODO">To Do</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="DONE">Done</option>
+          </select>
+        </div>
+
+        <!-- Priority Filter -->
+        <div class="col-md-2">
+          <select id="taskPriorityFilter" class="form-select form-select-devtask py-1 px-2 small">
+            <option value="">All Priorities</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="URGENT">Urgent</option>
+          </select>
+        </div>
+
+        <!-- Sort Filter -->
+        <div class="col-md-2">
+          <select id="taskSortFilter" class="form-select form-select-devtask py-1 px-2 small">
+            <option value="-created_at">Newest First</option>
+            <option value="due_date">Due Date</option>
+            <option value="-priority">Priority</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tasks Table Card -->
+  <div class="card-devtask">
+    <div class="card-devtask-body p-0">
+      <div class="table-responsive">
+        <table class="table table-dark table-hover mb-0 align-middle" style="background: transparent;">
+          <thead>
+            <tr class="text-muted small border-bottom border-secondary-subtle">
+              <th class="ps-3 py-3">Task Title</th>
+              <th class="py-3">Project</th>
+              <th class="py-3">Status</th>
+              <th class="py-3">Priority</th>
+              <th class="py-3">Assignee</th>
+              <th class="py-3">Due Date</th>
+              <th class="pe-3 py-3 text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody id="tasksTableTbody">
+            <tr>
+              <td colspan="7" class="text-center text-muted py-5 small">
+                <div class="spinner-border spinner-border-sm me-2"></div>Loading tasks...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination Footer -->
+    <div class="card-devtask-header bg-transparent border-top border-secondary-subtle py-2 px-3">
+      <div class="text-muted small" id="paginationInfo">Showing 0 of 0 tasks</div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-devtask-secondary py-1 px-3" id="prevPageBtn" disabled>
+          ← Previous
+        </button>
+        <button class="btn btn-sm btn-devtask-secondary py-1 px-3" id="nextPageBtn" disabled>
+          Next →
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/tasks.js' %}"></script>
+{% endblock %}

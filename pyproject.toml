@@ -1,0 +1,15 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = [
+    ".venv",
+    "migrations",
+    "staticfiles",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["F403", "F405", "E501", "E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "accounts", "projects", "tasks"]
