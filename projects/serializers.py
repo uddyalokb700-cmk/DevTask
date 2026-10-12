@@ -133,5 +133,9 @@ class ProjectDetailSerializer(ProjectSerializer):
 
     @extend_schema_field(ProjectMembershipSerializer(many=True))
     def get_members(self, obj):
-        memberships = obj.memberships.select_related("user", "user__profile").all()
+        if hasattr(obj, "prefetched_memberships"):
+            memberships = obj.prefetched_memberships
+        else:
+            memberships = obj.memberships.select_related("user", "user__profile").all()
         return ProjectMembershipSerializer(memberships, many=True).data
+

@@ -1,4 +1,4 @@
-from django.db.models import Case, Count, IntegerField, Q, When
+from django.db.models import Case, Count, IntegerField, Prefetch, Q, When
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
@@ -55,7 +55,17 @@ class ProjectListCreateAPIView(APIView):
         responses={200: ProjectSerializer(many=True)},
     )
     def get(self, request):
-        qs = Project.objects.for_user(request.user).select_related("owner", "owner__profile")
+        qs = (
+            Project.objects.for_user(request.user)
+            .select_related("owner", "owner__profile")
+            .prefetch_related(
+                Prefetch(
+                    "memberships",
+                    queryset=ProjectMembership.objects.filter(user=request.user),
+                    to_attr="user_memberships",
+                )
+            )
+        )
 
         # Filtering archived vs active
         include_archived = request.query_params.get("archived", "false").lower() in ("true", "1")
@@ -106,7 +116,15 @@ class ProjectDetailAPIView(APIView):
 
     def get_project(self, project_id, user):
         project = get_object_or_404(
-            Project.objects.select_related("owner", "owner__profile").annotate(
+            Project.objects.select_related("owner", "owner__profile")
+            .prefetch_related(
+                Prefetch(
+                    "memberships",
+                    queryset=ProjectMembership.objects.select_related("user", "user__profile").order_by("joined_at"),
+                    to_attr="prefetched_memberships",
+                )
+            )
+            .annotate(
                 members_count=Count("memberships", distinct=True),
                 tasks_count=Count("tasks", distinct=True),
                 completed_tasks_count=Count(

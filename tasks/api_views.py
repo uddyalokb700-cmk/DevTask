@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
-from django.db.models import Count
+from django.db.models import Count, IntegerField, OuterRef, Subquery
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import permissions, status
@@ -10,7 +11,7 @@ from rest_framework.views import APIView
 from projects.models import Project
 from projects.permissions import is_project_member
 from tasks.filters import TaskFilter
-from tasks.models import Task
+from tasks.models import Task, TaskComment
 from tasks.serializers import (
     TaskCommentCreateSerializer,
     TaskCommentSerializer,
@@ -40,6 +41,12 @@ class TaskListCreateAPIView(APIView):
 
     def get_queryset(self, user):
         user_projects = Project.objects.for_user(user)
+        comment_subquery = (
+            TaskComment.objects.filter(task=OuterRef("pk"))
+            .values("task")
+            .annotate(cnt=Count("id"))
+            .values("cnt")
+        )
         return (
             Task.objects.filter(project__in=user_projects)
             .select_related(
@@ -49,7 +56,7 @@ class TaskListCreateAPIView(APIView):
                 "assignee",
                 "assignee__profile",
             )
-            .annotate(comments_count=Count("comments", distinct=True))
+            .annotate(comments_count=Coalesce(Subquery(comment_subquery, output_field=IntegerField()), 0))
         )
 
     @extend_schema(
@@ -150,6 +157,12 @@ class TaskDetailAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_task(self, task_id, user):
+        comment_subquery = (
+            TaskComment.objects.filter(task=OuterRef("pk"))
+            .values("task")
+            .annotate(cnt=Count("id"))
+            .values("cnt")
+        )
         task = get_object_or_404(
             Task.objects.select_related(
                 "project",
@@ -157,7 +170,7 @@ class TaskDetailAPIView(APIView):
                 "created_by__profile",
                 "assignee",
                 "assignee__profile",
-            ).annotate(comments_count=Count("comments", distinct=True)),
+            ).annotate(comments_count=Coalesce(Subquery(comment_subquery, output_field=IntegerField()), 0)),
             pk=task_id,
         )
         if not is_project_member(task.project, user):

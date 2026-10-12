@@ -9,8 +9,17 @@ def get_user_project_role(project: Project, user) -> str | None:
         return None
     if project.owner_id == user.id:
         return ProjectMembership.Role.OWNER
+    if hasattr(project, "user_memberships"):
+        m = project.user_memberships[0] if project.user_memberships else None
+        return m.role if m else None
+    if hasattr(project, "prefetched_memberships"):
+        for m in project.prefetched_memberships:
+            if m.user_id == user.id:
+                return m.role
+        return None
     membership = ProjectMembership.objects.filter(project=project, user=user).first()
     return membership.role if membership else None
+
 
 
 def is_project_member(project: Project, user) -> bool:
