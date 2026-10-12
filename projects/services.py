@@ -41,8 +41,12 @@ def create_project(name: str, description: str, owner: User) -> Project:
 @transaction.atomic
 def update_project(project: Project, data: dict, actor: User) -> Project:
     """Update project details if actor is manager or owner."""
+    if project.is_archived:
+        raise ValidationError({"detail": "Cannot update an archived project."})
+
     if not is_project_manager_or_owner(project, actor):
         raise PermissionDenied("Only project managers or owners can update project details.")
+
 
     if "name" in data:
         name = data["name"].strip()
@@ -111,7 +115,11 @@ def add_project_member(project: Project, user: User, role: str, actor: User) -> 
     if not is_project_manager_or_owner(project, actor):
         raise PermissionDenied("Only project managers or owners can add team members.")
 
+    if not user.is_active:
+        raise ValidationError({"user": f"User '{user.username}' is not active."})
+
     if role not in ProjectMembership.Role.values:
+
         raise ValidationError({"role": f"Invalid role '{role}'."})
 
     # Cannot add someone as OWNER directly (ownership must be transferred)
@@ -197,7 +205,11 @@ def transfer_project_ownership(project: Project, new_owner: User, actor: User) -
     if not is_project_owner(project, actor):
         raise PermissionDenied("Only the current project owner can transfer ownership.")
 
+    if not new_owner.is_active:
+        raise ValidationError({"detail": "Cannot transfer ownership to an inactive user."})
+
     if new_owner.id == project.owner_id:
+
         raise ValidationError({"detail": "User is already the owner."})
 
     # Ensure new owner is already a member

@@ -19,6 +19,7 @@ from projects.serializers import (
     ProjectDetailSerializer,
     ProjectMembershipSerializer,
     ProjectSerializer,
+    ProjectUpdateSerializer,
     TransferOwnershipSerializer,
     UpdateMemberRoleSerializer,
 )
@@ -128,7 +129,7 @@ class ProjectDetailAPIView(APIView):
         return Response(ProjectDetailSerializer(project, context={"request": request}).data)
 
     @extend_schema(
-        request=ProjectCreateSerializer,
+        request=ProjectUpdateSerializer,
         responses={200: ProjectDetailSerializer, 403: OpenApiResponse(description="Access forbidden")},
     )
     def patch(self, request, project_id):
@@ -136,7 +137,9 @@ class ProjectDetailAPIView(APIView):
         if not project:
             return Response({"detail": "You do not have access to this project."}, status=status.HTTP_403_FORBIDDEN)
 
-        updated_project = update_project(project, request.data, request.user)
+        serializer = ProjectUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_project = update_project(project, serializer.validated_data, request.user)
         return Response(ProjectDetailSerializer(updated_project, context={"request": request}).data)
 
     @extend_schema(
@@ -162,7 +165,9 @@ class ProjectArchiveAPIView(APIView):
         if not is_project_member(project, request.user):
             return Response({"detail": "You do not have access to this project."}, status=status.HTTP_403_FORBIDDEN)
 
-        action = request.data.get("action", "archive")
+        serializer = ArchiveProjectActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        action = serializer.validated_data.get("action", "archive")
         if action == "unarchive":
             project = unarchive_project(project, request.user)
         else:
@@ -232,9 +237,17 @@ class ProjectMemberDetailAPIView(APIView):
 
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_project(self, project_id, user):
+        project = get_object_or_404(Project, pk=project_id)
+        if not is_project_member(project, user):
+            return None
+        return project
+
     @extend_schema(request=UpdateMemberRoleSerializer, responses={200: ProjectMembershipSerializer})
     def patch(self, request, project_id, membership_id):
-        project = get_object_or_404(Project, pk=project_id)
+        project = self.get_project(project_id, request.user)
+        if not project:
+            return Response({"detail": "Access denied."}, status=status.HTTP_403_FORBIDDEN)
         membership = get_object_or_404(ProjectMembership, pk=membership_id, project=project)
 
         serializer = UpdateMemberRoleSerializer(data=request.data)
@@ -246,7 +259,9 @@ class ProjectMemberDetailAPIView(APIView):
 
     @extend_schema(responses={204: OpenApiResponse(description="Member removed")})
     def delete(self, request, project_id, membership_id):
-        project = get_object_or_404(Project, pk=project_id)
+        project = self.get_project(project_id, request.user)
+        if not project:
+            return Response({"detail": "Access denied."}, status=status.HTTP_403_FORBIDDEN)
         membership = get_object_or_404(ProjectMembership, pk=membership_id, project=project)
 
         remove_project_member(project, membership, request.user)

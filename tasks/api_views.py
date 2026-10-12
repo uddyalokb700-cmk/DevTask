@@ -127,7 +127,7 @@ class TaskListCreateAPIView(APIView):
         assignee = None
         assignee_id = data.get("assignee_id")
         if assignee_id:
-            assignee = get_object_or_404(User, pk=assignee_id)
+            assignee = User.objects.get(pk=assignee_id)
 
         task = create_task(
             project=project,
@@ -177,13 +177,16 @@ class TaskDetailAPIView(APIView):
         if not task:
             return Response({"detail": "Access denied."}, status=status.HTTP_403_FORBIDDEN)
 
-        data = request.data.copy()
+        serializer = TaskCreateUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data.copy()
+
         if "assignee_id" in data:
-            assignee_id = data.get("assignee_id")
-            if assignee_id in (None, "", "null"):
+            assignee_id = data.pop("assignee_id")
+            if assignee_id is None:
                 data["assignee"] = None
             else:
-                data["assignee"] = get_object_or_404(User, pk=int(assignee_id))
+                data["assignee"] = User.objects.get(pk=assignee_id)
 
         updated_task = update_task(task, data, request.user)
         return Response(TaskSerializer(updated_task).data)

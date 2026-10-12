@@ -173,3 +173,167 @@ class TestTasks:
 
         task.refresh_from_db()
         assert task.title == "Secret Flight Plan"
+
+    def test_regular_member_cannot_delete_other_members_task(
+        self, api_client, project_with_team, user_alice, user_bob, user_charlie
+    ):
+        # Alice creates a task
+        task_alice = Task.objects.create(
+            project=project_with_team,
+            title="Alice's Architect Design",
+            status=Task.Status.TODO,
+            created_by=user_alice,
+        )
+
+        # Charlie (regular MEMBER) cannot delete Alice's task
+        api_client.force_authenticate(user=user_charlie)
+        res_charlie_del = api_client.delete(f"/api/tasks/{task_alice.id}/")
+        assert res_charlie_del.status_code == 403
+        assert Task.objects.filter(pk=task_alice.id).exists()
+
+        # Charlie CAN delete a task Charlie created
+        task_charlie = Task.objects.create(
+            project=project_with_team,
+            title="Charlie's Feature Task",
+            status=Task.Status.TODO,
+            created_by=user_charlie,
+        )
+        res_charlie_own_del = api_client.delete(f"/api/tasks/{task_charlie.id}/")
+        assert res_charlie_own_del.status_code == 204
+        assert not Task.objects.filter(pk=task_charlie.id).exists()
+
+        # Bob (MANAGER) CAN delete Alice's task
+        api_client.force_authenticate(user=user_bob)
+        res_bob_del = api_client.delete(f"/api/tasks/{task_alice.id}/")
+        assert res_bob_del.status_code == 204
+        assert not Task.objects.filter(pk=task_alice.id).exists()
+
+    def test_cannot_mutate_tasks_on_archived_project(
+        self, api_client, project_with_team, user_alice
+    ):
+        task = Task.objects.create(
+            project=project_with_team,
+            title="Pre-archive Task",
+            status=Task.Status.TODO,
+            created_by=user_alice,
+        )
+
+        # Archive project
+        api_client.force_authenticate(user=user_alice)
+        api_client.post(
+            f"/api/projects/{project_with_team.id}/archive/",
+            {"action": "archive"},
+            format="json",
+        )
+        project_with_team.refresh_from_db()
+        assert project_with_team.is_archived is True
+
+        # Creating new task on archived project fails
+        res_create = api_client.post(
+            "/api/tasks/",
+            {"project_id": str(project_with_team.id), "title": "New Task"},
+            format="json",
+        )
+        assert res_create.status_code == 400
+
+        # Updating existing task on archived project fails
+        res_update = api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {"title": "Updated Title"},
+            format="json",
+        )
+        assert res_update.status_code == 400
+
+        # Reordering task on archived project fails
+        res_reorder = api_client.post(
+            f"/api/tasks/{task.id}/reorder/",
+            {"status": "DONE", "position": 5.0},
+            format="json",
+        )
+        assert res_reorder.status_code == 400
+
+        # Commenting on task in archived project fails
+        res_comment = api_client.post(
+            f"/api/tasks/{task.id}/comments/",
+            {"body": "Comment on archived project task"},
+            format="json",
+        )
+        assert res_comment.status_code == 400
+
+        # Deleting task on archived project fails
+        res_del = api_client.delete(f"/api/tasks/{task.id}/")
+        assert res_del.status_code == 400
+
+    def test_task_patch_and_create_rejects_invalid_assignee(
+        self, api_client, project_with_team, user_alice
+    ):
+        from django.contrib.auth.models import User
+
+        task = Task.objects.create(
+            project=project_with_team,
+            title="Task for Validation",
+            status=Task.Status.TODO,
+            created_by=user_alice,
+        )
+        api_client.force_authenticate(user=user_alice)
+
+        # 1. Non-integer assignee_id must return 400 Bad Request (not 500!)
+        res_str = api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {"assignee_id": "invalid_string"},
+            format="json",
+        )
+        assert res_str.status_code == 400
+        assert "assignee_id" in res_str.data
+
+        # 2. Non-existent user ID must return 400 Bad Request (not 404!)
+        res_not_found = api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {"assignee_id": 999999},
+            format="json",
+        )
+        assert res_not_found.status_code == 400
+        assert "assignee_id" in res_not_found.data
+
+        # 3. Deactivated user cannot be assigned
+        inactive_user = User.objects.create_user(
+            username="inactive_assignee",
+            email="inactive_assignee@devtask.test",
+            password="TestPassword123!",
+            is_active=False,
+        )
+        res_inactive = api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {"assignee_id": inactive_user.id},
+            format="json",
+        )
+        assert res_inactive.status_code == 400
+        assert "assignee_id" in res_inactive.data
+
+    def test_task_patch_mass_assignment_protection(
+        self, api_client, project_with_team, user_alice, user_bob
+    ):
+        task = Task.objects.create(
+            project=project_with_team,
+            title="Task Protection",
+            status=Task.Status.TODO,
+            created_by=user_alice,
+        )
+        api_client.force_authenticate(user=user_alice)
+
+        res = api_client.patch(
+            f"/api/tasks/{task.id}/",
+            {
+                "title": "Clean Updated Title",
+                "created_by": user_bob.id,
+                "id": "11111111-1111-1111-1111-111111111111",
+            },
+            format="json",
+        )
+        assert res.status_code == 200
+        task.refresh_from_db()
+        assert task.title == "Clean Updated Title"
+        # Protected fields cannot be changed
+        assert task.created_by == user_alice
+        assert str(task.id) != "11111111-1111-1111-1111-111111111111"
+

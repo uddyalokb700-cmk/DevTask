@@ -219,13 +219,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedProjectCreate'
+              $ref: '#/components/schemas/PatchedProjectUpdate'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedProjectCreate'
+              $ref: '#/components/schemas/PatchedProjectUpdate'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedProjectCreate'
+              $ref: '#/components/schemas/PatchedProjectUpdate'
       security:
       - cookieAuth: []
       responses:
@@ -852,16 +852,13 @@ components:
       required:
       - password
       - username
-    PatchedProjectCreate:
+    PatchedProjectUpdate:
       type: object
       properties:
         name:
           type: string
-          description: Project display name
-          maxLength: 200
         description:
           type: string
-          description: Detailed project description
     PatchedTaskCreateUpdate:
       type: object
       properties:

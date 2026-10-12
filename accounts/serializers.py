@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
@@ -9,6 +11,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ["display_name", "bio", "avatar_color"]
+
+    def validate_avatar_color(self, value):
+        if value and not re.match(r"^#[0-9a-fA-F]{6}$", value):
+            raise serializers.ValidationError("Avatar color must be a valid 6-character hex code (e.g. #3b82f6).")
+        return value
 
 
 from drf_spectacular.utils import extend_schema_field
@@ -85,6 +92,12 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["first_name", "last_name", "email", "display_name", "bio", "avatar_color"]
+
+    def validate_avatar_color(self, value):
+        if value and not re.match(r"^#[0-9a-fA-F]{6}$", value):
+            raise serializers.ValidationError("Avatar color must be a valid 6-character hex code (e.g. #3b82f6).")
+        return value
+
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop("profile", {})

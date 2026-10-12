@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -111,6 +112,18 @@ class TaskCreateUpdateSerializer(serializers.ModelSerializer):
         if not val:
             raise serializers.ValidationError("Task title cannot be empty.")
         return val
+
+    def validate_assignee_id(self, value):
+        if value is None:
+            return None
+        try:
+            user = User.objects.get(pk=value)
+            if not user.is_active:
+                raise serializers.ValidationError("Cannot assign task to an inactive user.")
+            return value
+        except User.DoesNotExist:
+            raise serializers.ValidationError("User does not exist.")
+
 
 
 class TaskReorderSerializer(serializers.Serializer):

@@ -5,14 +5,18 @@ from django.db.models import Max
 from django.utils import timezone
 
 from projects.models import Project
-from projects.permissions import is_project_member
+from projects.permissions import is_project_manager_or_owner, is_project_member
 from tasks.broadcaster import broadcast_project_event
 from tasks.models import ActivityLog, Task, TaskComment
 
 
 def validate_assignee_in_project(project: Project, assignee: User | None):
-    """Ensure assignee belongs to the project."""
+    """Ensure assignee belongs to the project and is active."""
     if assignee:
+        if not assignee.is_active:
+            raise ValidationError(
+                {"assignee": f"User '{assignee.username}' is not active."}
+            )
         is_member = project.owner_id == assignee.id or project.memberships.filter(user=assignee).exists()
         if not is_member:
             raise ValidationError(
@@ -33,6 +37,9 @@ def create_task(
     position: float | None = None,
 ) -> Task:
     """Create a new task with validation, activity logging, and real-time broadcasting."""
+    if project.is_archived:
+        raise ValidationError({"project": "Cannot create tasks in an archived project."})
+
     if not is_project_member(project, created_by):
         raise PermissionDenied("You must be a member of this project to create tasks.")
 
@@ -82,9 +89,14 @@ def create_task(
 
 @transaction.atomic
 def update_task(task: Task, data: dict, actor: User) -> Task:
-    """Update task attributes with granular event logging and transactional integrity."""
+    """Update task attributes with granular event logging, row-level locking, and transactional integrity."""
+    if task.project.is_archived:
+        raise ValidationError({"project": "Cannot modify tasks in an archived project."})
+
     if not is_project_member(task.project, actor):
         raise PermissionDenied("You must be a member of this project to update tasks.")
+
+    task = Task.objects.select_for_update().select_related("project", "assignee").get(pk=task.pk)
 
     old_status = task.status
     old_priority = task.priority
@@ -178,9 +190,14 @@ def update_task(task: Task, data: dict, actor: User) -> Task:
 
 @transaction.atomic
 def reorder_task_kanban(task: Task, new_status: str, new_position: float, actor: User) -> Task:
-    """Atomic reordering of a task on the Kanban board."""
+    """Atomic reordering of a task on the Kanban board with row-level locking."""
+    if task.project.is_archived:
+        raise ValidationError({"project": "Cannot reorder tasks in an archived project."})
+
     if not is_project_member(task.project, actor):
         raise PermissionDenied("You must be a member of this project to move tasks.")
+
+    task = Task.objects.select_for_update().select_related("project").get(pk=task.pk)
 
     if new_status not in Task.Status.values:
         raise ValidationError({"status": f"Invalid status '{new_status}'."})
@@ -218,9 +235,16 @@ def reorder_task_kanban(task: Task, new_status: str, new_position: float, actor:
 
 @transaction.atomic
 def delete_task(task: Task, actor: User) -> None:
-    """Delete a task and log the event."""
+    """Delete a task and log the event with role-based permission checks."""
+    if task.project.is_archived:
+        raise ValidationError({"project": "Cannot delete tasks in an archived project."})
+
     if not is_project_member(task.project, actor):
         raise PermissionDenied("You must be a member of this project to delete tasks.")
+
+    can_delete = is_project_manager_or_owner(task.project, actor) or task.created_by_id == actor.id
+    if not can_delete:
+        raise PermissionDenied("Only project managers, owners, or the task creator can delete this task.")
 
     project_id = str(task.project_id)
     task_id = str(task.id)
@@ -245,6 +269,9 @@ def delete_task(task: Task, actor: User) -> None:
 @transaction.atomic
 def create_task_comment(task: Task, author: User, body: str) -> TaskComment:
     """Post a comment on a task by an authorized project member."""
+    if task.project.is_archived:
+        raise ValidationError({"project": "Cannot comment on tasks in an archived project."})
+
     if not is_project_member(task.project, author):
         raise PermissionDenied("You must be a member of this project to comment.")
 

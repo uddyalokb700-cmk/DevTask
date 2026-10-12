@@ -45,7 +45,9 @@ class Project(models.Model):
             models.Index(fields=["owner", "archived_at"], name="idx_proj_owner_archived"),
             models.Index(fields=["archived_at"], name="idx_proj_archived"),
             models.Index(fields=["created_at"], name="idx_proj_created"),
+            models.Index(fields=["-updated_at"], name="idx_proj_updated"),
         ]
+
 
     def __str__(self):
         return self.name

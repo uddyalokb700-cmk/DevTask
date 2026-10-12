@@ -30,6 +30,8 @@ class AddMemberSerializer(serializers.Serializer):
         user = User.objects.filter(username__iexact=val).first() or User.objects.filter(email__iexact=val).first()
         if not user:
             raise serializers.ValidationError(f"No user found with username or email '{val}'.")
+        if not user.is_active:
+            raise serializers.ValidationError(f"User '{user.username}' is not active.")
         return user
 
 
@@ -47,9 +49,13 @@ class TransferOwnershipSerializer(serializers.Serializer):
 
     def validate_new_owner_id(self, value):
         try:
-            return User.objects.get(pk=value)
+            user = User.objects.get(pk=value)
+            if not user.is_active:
+                raise serializers.ValidationError("Cannot transfer ownership to an inactive user.")
+            return user
         except User.DoesNotExist:
             raise serializers.ValidationError("Target user does not exist.")
+
 
 
 from drf_spectacular.utils import extend_schema_field
@@ -101,6 +107,22 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
         if not val:
             raise serializers.ValidationError("Project name cannot be empty.")
         return val
+
+
+class ProjectUpdateSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(required=False)
+    description = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = Project
+        fields = ["name", "description"]
+
+    def validate_name(self, value):
+        val = value.strip()
+        if not val:
+            raise serializers.ValidationError("Project name cannot be empty.")
+        return val
+
 
 
 class ProjectDetailSerializer(ProjectSerializer):

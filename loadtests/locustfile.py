@@ -8,7 +8,8 @@ Or headless smoke benchmark:
 """
 
 import random
-from locust import HttpUser, task, between
+
+from locust import HttpUser, between, task
 
 
 class DevTaskUser(HttpUser):

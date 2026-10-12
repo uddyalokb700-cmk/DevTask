@@ -1,5 +1,6 @@
 from django.contrib.auth import logout
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_POST
 
 
 def login_view(request):
@@ -16,7 +17,9 @@ def register_view(request):
     return render(request, "accounts/register.html")
 
 
+@require_POST
 def logout_view(request):
-    """Log out user and redirect to login."""
+    """Log out user and redirect to login (requires POST to prevent logout CSRF)."""
     logout(request)
     return redirect("accounts:login")
+
