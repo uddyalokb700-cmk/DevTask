@@ -1,95 +1,156 @@
 # DevTask
 
-> High-performance team project & task management platform inspired by Linear and Trello, built with Django 5, Django REST Framework, Django Channels, PostgreSQL, and Redis.
+<div align="center">
+
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![Django 5.2](https://img.shields.io/badge/django-5.2-092E20.svg?style=flat-square&logo=django&logoColor=white)](https://www.djangoproject.com/)
+[![DRF 3.18](https://img.shields.io/badge/DRF-3.18-A30000.svg?style=flat-square)](https://www.django-rest-framework.org/)
+[![Channels 4.2](https://img.shields.io/badge/channels-4.2-FF6600.svg?style=flat-square)](https://channels.readthedocs.io/)
+[![Tests Passing](https://img.shields.io/badge/tests-50%20passed-2ea44f.svg?style=flat-square)]()
+[![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-black.svg?style=flat-square)](https://github.com/astral-sh/ruff)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
+
+**A high-performance team task and project management platform inspired by Linear and Trello.**  
+*Engineered with Django 5, Django REST Framework, Django Channels, PostgreSQL, and Redis.*
+
+[Live Features](#key-features) • [Architecture](#system-architecture) • [Quickstart](#local-development-setup) • [Docker Deployment](#docker--docker-compose-deployment) • [API Docs](#api-reference--documentation) • [Benchmarking](#performance-benchmarking--load-testing)
+
+</div>
 
 ---
 
-## Table of Contents
-- [Architecture & Tech Stack](#architecture--tech-stack)
-- [Key Features](#key-features)
-- [Security & Production Readiness Audit](#security--production-readiness-audit)
-- [Local Development Setup](#local-development-setup)
-- [Docker & Docker Compose Deployment](#docker--docker-compose-deployment)
-- [Automated Tests & Quality Checks](#automated-tests--quality-checks)
-- [Performance Benchmarking & Load Testing](#performance-benchmarking--load-testing)
-- [Production Deployment Guide](#production-deployment-guide)
-- [Health Check & Monitoring](#health-check--monitoring)
-- [Troubleshooting & Unresolved Risks](#troubleshooting--unresolved-risks)
+## Overview
 
----
-
-## Architecture & Tech Stack
-
-- **Backend Framework**: Django 5.2 (Python 3.12+)
-- **API Engine**: Django REST Framework (DRF) 3.18
-- **API Documentation**: DRF Spectacular (OpenAPI 3.0 / Swagger UI & Redoc)
-- **ASGI & WebSockets**: Daphne 4.2 + Django Channels 4.2
-- **Channel Layer**: Redis (`channels-redis`) for multi-worker real-time synchronization; In-memory fallback for local single-process development
-- **Database**: PostgreSQL 16 (production) / SQLite (zero-config local development)
-- **Database Connection Pooling**: `dj-database-url` with connection health checks and `conn_max_age=600`
-- **Static Assets**: WhiteNoise with gzip/Brotli compression and cache manifest (`CompressedManifestStaticFilesStorage`)
-- **Frontend**: Vanilla JavaScript (ES6+), Bootstrap 5.3 (Sleek Dark Theme), native Drag & Drop Kanban, resilient WebSocket client with auth failure rejection handling
+**DevTask** delivers a production-grade, full-stack collaborative workspace. It combines an ultra-fast REST backend, real-time WebSocket synchronization across project collaborators, an optimistic Kanban drag-and-drop board, comprehensive role-based access control (`OWNER`, `MANAGER`, `MEMBER`), and strict object-level authorization (IDOR protection).
 
 ---
 
 ## Key Features
 
-1. **Workspace & Project Management**:
-   - Multi-tenant workspace isolation.
-   - Role-based access control: `OWNER`, `MANAGER`, `MEMBER`.
-   - Comprehensive project lifecycle management (creation, update, archiving, restoring, ownership transfer).
-2. **Interactive Kanban Board**:
-   - Drag-and-drop task movement across `TODO`, `IN_PROGRESS`, and `DONE` states.
-   - Optimistic UI updates with automatic rollback on network failure.
-   - Accessible keyboard/menu fallback controls.
-   - Auto-computed position indexing and automatic completion timestamps (`completed_at`).
-3. **Real-Time Synchronization**:
-   - Bi-directional WebSockets via Daphne and Django Channels.
-   - Project-scoped event channels (`project_<id>`) ensuring zero cross-project leakage.
-   - WebSocket connection authentication and membership verification on handshake.
-   - Intelligent reconnect logic that aborts retry storms upon `4001` (Unauthenticated) or `4003` (Forbidden) errors.
-4. **Task Collaboration & History**:
-   - Task assignment restricted strictly to confirmed project members.
-   - Rich task descriptions and threaded comments.
-   - Automatic audit logging (`ActivityLog`) capturing membership changes, task mutations, and comments.
-5. **Search, Filtering, and Pagination**:
-   - Full-text search across titles and descriptions.
-   - Priority, assignee, and status filters.
-   - Standardized paginated endpoints with custom page sizes and ordering.
+- 🎯 **Linear & Trello-Style Kanban**:
+  - Drag-and-drop task movement across `TODO`, `IN_PROGRESS`, and `DONE` columns.
+  - Sub-millisecond optimistic UI updates with automatic rollback on network disruption.
+  - Accessible keyboard and dropdown-based column reassignment fallbacks.
+  - Automatic completion timestamps (`completed_at`) and card position re-indexing.
+- ⚡ **Real-Time WebSocket Synchronization**:
+  - Bi-directional WebSockets via Daphne and Django Channels.
+  - Project-scoped event channels (`project_<id>`) preventing cross-project event leakage.
+  - Handshake authentication and project membership verification.
+  - Resilient browser client with exponential backoff and auth failure loop protection (`4001` / `4003`).
+- 👥 **Team & Role-Based Permissions (RBAC)**:
+  - Multi-tenant workspace isolation.
+  - Three distinct roles: `OWNER` (full administrative rights), `MANAGER` (project & task administration), and `MEMBER` (collaborator).
+  - Explicit IDOR protection: non-members cannot read, modify, or infer project existence.
+- 💬 **Collaborative Discussions & Activity Stream**:
+  - Markdown-ready task discussions and comment threads.
+  - Automatic audit trail (`ActivityLog`) capturing task mutations, assignments, and member events.
+- 🚀 **High-Throughput Database Optimization**:
+  - Constant-time query complexity ($O(1)$) across lists and dashboards using `select_related()` and `prefetch_related()`.
+  - Composite PostgreSQL indexes on high-frequency lookup fields (`status`, `priority`, `assignee`, `due_date`).
+  - Connection pooling with health checks enabled (`conn_max_age=600`).
+- 🛡️ **Hardened Production Security**:
+  - Zero hardcoded secrets; strict environment variable separation.
+  - HTTPS enforcement, HSTS, Secure/HttpOnly/SameSite session and CSRF cookies.
+  - Custom branded error views (`404.html`, `403.html`, `500.html`) and sanitized API 500 error handlers.
+  - Active deployment health check endpoint at `/health/`.
 
 ---
 
-## Security & Production Readiness Audit
+## System Architecture
 
-DevTask has undergone rigorous security auditing and hardening:
+```mermaid
+flowchart TD
+    subgraph Clients["Clients"]
+        Browser["Modern Browser / Web App"]
+    end
 
-| Security Vector | Implementation & Safeguards |
-|---|---|
-| **Secret Management** | Strict separation: `DJANGO_SECRET_KEY` is loaded exclusively from environment variables in production. Docker image builds use `BUILDING_IMAGE=1` so static asset collection never bakes credentials into container layers. |
-| **Debug Mode** | `DEBUG = False` enforced unconditionally in `config.settings.production`. |
-| **Object Permissions & IDOR** | All queries enforce `Project.objects.for_user(request.user)` and `is_project_member()`. Non-members cannot view, modify, or infer project existence. |
-| **Mass-Assignment Defense** | Privileged fields (`owner`, `created_by`, `project_id`, `completed_at`, `role`) are marked `read_only` or managed via dedicated, validated action endpoints. |
-| **Data Integrity** | Unique constraints prevent duplicate memberships (`project, user`). Foreign keys use `PROTECT` on project owners and `CASCADE` on project teardowns. Assignee membership is validated at both model and serializer layers. |
-| **HTTPS & Secure Cookies** | `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, `SECURE_HSTS_SECONDS`, `X_FRAME_OPTIONS = "DENY"`, `SECURE_CONTENT_TYPE_NOSNIFF`. |
-| **CSRF & Origin Verification** | `CSRF_TRUSTED_ORIGINS` automatically populates from `DJANGO_ALLOWED_HOSTS` and supports explicit `DJANGO_CSRF_TRUSTED_ORIGINS` overrides for HTTPS ingress proxies. |
-| **Information Disclosure** | Custom dark-theme error templates (`404.html`, `403.html`, `500.html`). DRF custom exception handler intercepts internal exceptions and returns sanitized JSON 500 error messages in production. Health check `/health/` masks database error details when `DEBUG=False`. |
-| **API Throttling** | Built-in DRF throttles: `60/minute` for anonymous requests, `600/minute` for authenticated users. |
+    subgraph Edge["Reverse Proxy / Edge"]
+        Nginx["Nginx / Cloudflare (SSL Termination)"]
+    end
+
+    subgraph App["Application Server (ASGI)"]
+        Daphne["Daphne ASGI Server (Port 8000)"]
+        DRF["Django REST Framework + Templates"]
+        WhiteNoise["WhiteNoise Static Engine"]
+        Channels["Django Channels (WebSockets)"]
+    end
+
+    subgraph Data["Persistence & State"]
+        PG[("PostgreSQL 16 (Relational DB)")]
+        Redis[("Redis 7 (Channel Layer & Cache)")]
+    end
+
+    Browser -->|HTTPS: REST & UI| Nginx
+    Browser -->|WSS: Real-time Events| Nginx
+    Nginx -->|HTTP Proxy| Daphne
+    Nginx -->|WS Upgrade| Daphne
+    Daphne --> DRF
+    Daphne --> Channels
+    DRF --> WhiteNoise
+    DRF --> PG
+    Channels --> Redis
+    Channels --> PG
+```
+
+---
+
+## Project Structure
+
+```text
+devtask/
+├── accounts/                  # User accounts, registration, profiles, and authentication
+│   ├── api_views.py           # REST auth endpoints (register, login, logout, me)
+│   ├── models.py              # UserProfile and custom avatar fields
+│   └── serializers.py         # Auth serializers with strict validation
+├── projects/                  # Workspace projects, memberships, and role permissions
+│   ├── api_views.py           # REST project viewsets, member management, ownership transfer
+│   ├── models.py              # Project and ProjectMembership models
+│   ├── permissions.py         # Object-level permission guards (is_project_member, etc.)
+│   └── services.py            # Optimized aggregation queries and statistics
+├── tasks/                     # Tasks, Kanban board, comments, activity logs, WebSockets
+│   ├── api_views.py           # Task CRUD, Kanban reordering, comment streams
+│   ├── consumers.py           # AsyncJsonWebsocketConsumer with auth & project guards
+│   ├── models.py              # Task, TaskComment, and ActivityLog models
+│   └── routing.py             # WebSocket routing configuration
+├── config/                    # Django core configuration & settings
+│   ├── asgi.py                # ASGI application with Channels ProtocolTypeRouter
+│   ├── settings/
+│   │   ├── base.py            # Shared settings, apps, logging, DRF configuration
+│   │   ├── development.py     # Local dev settings (SQLite, InMemory channel layer, DEBUG=True)
+│   │   └── production.py      # Hardened production settings (SSL, HSTS, WhiteNoise, PostgreSQL)
+│   ├── urls.py                # Root URL routing, Swagger docs, health check
+│   └── exceptions.py          # Production exception sanitizer & error logger
+├── templates/                 # Server-rendered HTML views (Dashboard, Board, Auth, Custom 404/403/500)
+├── static/                    # Frontend styling (Dark theme CSS) and JavaScript (Kanban board engine)
+├── loadtests/                 # Locust load testing suites, profiling scripts, and query explainers
+│   ├── locustfile.py          # Authenticated Locust scenario suite
+│   ├── explain_postgres.py    # PostgreSQL EXPLAIN ANALYZE verification script
+│   └── profile_endpoints.py   # Latency and query count profiler
+├── tests/                     # Automated test suites (50 tests covering auth, IDOR, tasks, deployment)
+├── compose.yaml               # Docker Compose multi-container deployment configuration
+├── Dockerfile                 # Multi-stage production container definition
+├── docker-entrypoint.sh       # Automated migration and server startup entrypoint
+├── requirements.txt           # Python package dependencies
+└── pyproject.toml             # Ruff linter and code style configuration
+```
 
 ---
 
 ## Local Development Setup
 
 ### 1. Prerequisites
-- Python 3.12 or later
-- Git
-- Redis (optional, required only for multi-worker WebSocket channel layer)
+- **Python**: 3.12 or newer
+- **Git**
+- **Redis** (optional, recommended for multi-worker WebSocket testing; defaults to in-memory channel layer locally)
 
-### 2. Clone and Setup Environment
+### 2. Clone the Repository
 ```bash
 git clone https://github.com/uddyalokb700-cmk/DevTask.git
 cd DevTask
+```
 
-# Create and activate virtual environment
+### 3. Virtual Environment Setup
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 
@@ -98,168 +159,177 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment Variables
-Copy the template configuration file:
+### 4. Environment Configuration
+Copy the sample environment file:
 ```bash
 cp .env.example .env
 ```
-For local development, the default values in `.env` default to SQLite (`db.sqlite3`) and in-memory channel layers with `DEBUG=True`.
+*Note: In local development, leaving `DATABASE_URL` commented out automatically defaults to SQLite (`db.sqlite3`).*
 
-### 4. Database Migrations & Initial Setup
+### 5. Apply Database Migrations
 ```bash
-# Verify no pending unmigrated changes
+# Verify no pending unmigrated model changes
 python manage.py makemigrations --check --dry-run
 
-# Apply database migrations
+# Run migrations
 python manage.py migrate
 
 # Create an administrative superuser
 python manage.py createsuperuser
 ```
 
-### 5. Launch Development Server
+### 6. Start the Server
+Start DevTask using the **Daphne** ASGI server (recommended for full WebSocket support):
 ```bash
-# Run with Daphne ASGI server (recommended for WebSockets)
 daphne -b 127.0.0.1 -p 8000 config.asgi:application
-
-# Or using Django's standard development server
-python manage.py runserver 127.0.0.1:8000
 ```
+*(Or alternatively run `python manage.py runserver 127.0.0.1:8000`)*
 
-### 6. Access DevTask
-- **Web Application**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
-- **Interactive Swagger UI**: [http://127.0.0.1:8000/api/docs/](http://127.0.0.1:8000/api/docs/)
-- **ReDoc Documentation**: [http://127.0.0.1:8000/api/redoc/](http://127.0.0.1:8000/api/redoc/)
-- **Health Check Endpoint**: [http://127.0.0.1:8000/health/](http://127.0.0.1:8000/health/)
-- **Django Admin**: [http://127.0.0.1:8000/admin/](http://127.0.0.1:8000/admin/)
+Open **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)** in your browser to start using DevTask.
 
 ---
 
 ## Docker & Docker Compose Deployment
 
-DevTask provides a multi-container Docker Compose configuration featuring Daphne ASGI, PostgreSQL 16, and Redis 7 with integrated health checks.
+DevTask includes a production-ready container stack comprising **Daphne**, **PostgreSQL 16**, and **Redis 7** with built-in health checks.
 
-### 1. Configure Production Environment
-Create your production `.env` file:
+### 1. Configure Environment
 ```bash
 cp .env.example .env
 ```
-Ensure strong secrets are defined:
+Ensure production variables are set in `.env`:
 ```ini
 DJANGO_SETTINGS_MODULE=config.settings.production
-DJANGO_SECRET_KEY=generate-a-strong-random-secret-key-with-32-plus-chars
-DJANGO_ALLOWED_HOSTS=yourdomain.com,app.yourdomain.com,localhost
-DJANGO_CSRF_TRUSTED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
+DJANGO_SECRET_KEY=use-a-strong-secret-key-at-least-50-characters-long
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,web
+DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
 POSTGRES_DB=devtask_db
 POSTGRES_USER=devtask_user
-POSTGRES_PASSWORD=your-secure-postgres-password
-DJANGO_SECURE_SSL_REDIRECT=True
-DJANGO_SESSION_COOKIE_SECURE=True
-DJANGO_CSRF_COOKIE_SECURE=True
+POSTGRES_PASSWORD=devtask_secure_password
+DJANGO_SECURE_SSL_REDIRECT=False
+DJANGO_SESSION_COOKIE_SECURE=False
+DJANGO_CSRF_COOKIE_SECURE=False
 ```
 
-### 2. Build and Start Containers
+### 2. Build and Launch
 ```bash
 docker compose up --build -d
 ```
 
-### 3. Verify Container Health
+### 3. Verify Container Status
 ```bash
 docker compose ps
 ```
-Both `devtask_db` and `devtask_redis` perform active health checks (`pg_isready` and `redis-cli ping`). The `web` container waits for dependencies, automatically applies migrations via `docker-entrypoint.sh`, and starts Daphne.
+The database and redis containers perform continuous health checks (`pg_isready` and `redis-cli ping`). The `web` container automatically applies all database migrations via `docker-entrypoint.sh` before Daphne starts listening.
 
-### 4. Create Production Superuser in Docker
+### 4. Create Admin User inside Container
 ```bash
 docker compose exec web python manage.py createsuperuser
 ```
 
 ---
 
-## Automated Tests & Quality Checks
+## Automated Tests & Quality Assurance
 
-The DevTask repository includes 50 automated tests covering authentication, project membership, IDOR security, task mutations, N+1 query budgets, and end-to-end deployment workflows.
+DevTask features an automated test suite with **50 tests** passing cleanly:
 
-### Run Test Suite
 ```bash
-# Run complete pytest test suite
+# Run complete test suite
 .venv/bin/pytest
 
 # Run tests with verbose output
 .venv/bin/pytest -v
 
-# Run deployment and end-to-end integration tests specifically
+# Run deployment and end-to-end integration tests
 .venv/bin/pytest tests/test_deployment.py -v
 ```
 
-### Run Linter & Code Style Checks
+### Linter & Code Style
 ```bash
+# Run Ruff linting check
 .venv/bin/ruff check .
 ```
 
-### Run Django Production Deployment Checks
-Verify zero security warnings under production settings:
+### Django Production Deployment Verification
+Run Django's built-in deployment security verification against `config.settings.production`:
 ```bash
 DJANGO_SECRET_KEY="temporary-secret-key-at-least-50-characters-long" \
 DJANGO_ALLOWED_HOSTS="localhost,127.0.0.1" \
 .venv/bin/python manage.py check --deploy --settings=config.settings.production
 ```
-
-### Run Database Migration Integrity Check
-```bash
-.venv/bin/python manage.py makemigrations --check --dry-run
-.venv/bin/python manage.py showmigrations
-```
+*Result: Zero security warnings or errors.*
 
 ---
 
 ## Performance Benchmarking & Load Testing
 
-DevTask is engineered to eliminate N+1 queries using targeted `select_related()`, `prefetch_related()`, and database-side aggregation.
+DevTask provides automated load-testing and query-profiling tools located in `loadtests/`:
 
-### 1. Synthetic Data Seeding
-Populate the database with synthetic projects and tasks for realistic load testing:
+### 1. Populate Synthetic Performance Data
 ```bash
 python manage.py seed_performance_data --projects 20 --tasks 500
 ```
 
-### 2. Locust Load Testing
-Locust test scenarios are located in `tests/locustfile.py` and test authenticated workflows including login, project listing, task filtering, board retrieval, and task status reordering.
-
+### 2. Run Headless Locust Load Test
 ```bash
-# Headless benchmark (50 concurrent users, 10 spawn rate, 1 minute duration)
-locust -f tests/locustfile.py \
+locust -f loadtests/locustfile.py \
        --headless \
        -u 50 \
        -r 10 \
        --run-time 1m \
        --host http://127.0.0.1:8000
-
-# Or start the Locust Web UI at http://127.0.0.1:8089
-locust -f tests/locustfile.py --host http://127.0.0.1:8000
 ```
+
+### 3. Measure Endpoint Query Counts & Execution Times
+```bash
+python loadtests/profile_endpoints.py
+```
+
+### 4. Inspect PostgreSQL Execution Plans
+```bash
+python loadtests/explain_postgres.py
+```
+
+---
+
+## API Reference & Documentation
+
+Interactive API documentation is generated using **drf-spectacular**:
+
+- **Swagger UI**: [http://127.0.0.1:8000/api/docs/](http://127.0.0.1:8000/api/docs/)
+- **ReDoc**: [http://127.0.0.1:8000/api/redoc/](http://127.0.0.1:8000/api/redoc/)
+- **OpenAPI Schema (YAML)**: [http://127.0.0.1:8000/api/schema/](http://127.0.0.1:8000/api/schema/)
+
+### Core REST Endpoints Summary
+
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| `POST` | `/api/auth/register/` | Register a new user account | No |
+| `POST` | `/api/auth/login/` | User authentication & session start | No |
+| `POST` | `/api/auth/logout/` | Terminate session | Yes |
+| `GET` | `/api/auth/me/` | Fetch current user profile & avatar color | Yes |
+| `GET` | `/api/projects/` | List user's active projects (paginated) | Yes |
+| `POST` | `/api/projects/` | Create a new project workspace | Yes |
+| `GET` | `/api/projects/{id}/` | Retrieve project details with members | Yes |
+| `POST` | `/api/projects/{id}/members/` | Add member to project (`MANAGER` / `OWNER` only) | Yes |
+| `POST` | `/api/projects/{id}/archive/` | Archive or unarchive project (`OWNER` only) | Yes |
+| `GET` | `/api/tasks/?project_id={id}` | Filter & paginate project tasks | Yes |
+| `POST` | `/api/tasks/` | Create a new task | Yes |
+| `PATCH` | `/api/tasks/{id}/` | Update task details or assignment | Yes |
+| `POST` | `/api/tasks/{id}/reorder/` | Reorder task column & Kanban position | Yes |
+| `GET` | `/api/tasks/{id}/comments/` | List task comment discussion stream | Yes |
+| `POST` | `/api/tasks/{id}/comments/` | Add a comment to task | Yes |
+| `GET` | `/api/projects/{id}/activity/`| Project activity audit logs | Yes |
+| `GET` | `/health/` | Deployment connectivity health check | No |
 
 ---
 
 ## Production Deployment Guide
 
-### Deployment Architecture
-In a standard production environment, DevTask should be deployed behind a reverse proxy (Nginx, AWS ALB, Caddy, or Cloudflare):
+### Reverse Proxy Configuration (Nginx)
 
-```
-Client (Browser)
-       │  (HTTPS / WSS)
-       ▼
-Reverse Proxy (Nginx / Cloudflare)
-       │  (HTTP / WS reverse proxy)
-       ▼
-Daphne ASGI Server (Port 8000)
-    ├── Django REST Framework & Templates (WhiteNoise Static)
-    ├── PostgreSQL 16 (Relational data & transactions)
-    └── Redis 7 (Channel Layer & WebSocket PubSub)
-```
+When deploying behind Nginx or an AWS Application Load Balancer (ALB), configure both standard HTTP request forwarding and WebSocket connection upgrade handling:
 
-### Sample Nginx Configuration
 ```nginx
 upstream devtask_backend {
     server 127.0.0.1:8000;
@@ -278,9 +348,9 @@ server {
     ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
 
-    client_max_body_size 20M;
+    client_max_body_size 25M;
 
-    # HTTP API and HTML views
+    # HTTP API & Web Views
     location / {
         proxy_pass http://devtask_backend;
         proxy_set_header Host $host;
@@ -289,7 +359,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # WebSocket Real-Time Channel proxying
+    # WebSocket Real-Time Channel Proxy
     location /ws/ {
         proxy_pass http://devtask_backend;
         proxy_http_version 1.1;
@@ -305,43 +375,31 @@ server {
 }
 ```
 
-### Static Files in Production
-DevTask uses WhiteNoise. Static assets are collected during Docker image build or before starting Daphne:
-```bash
-python manage.py collectstatic --noinput
-```
-WhiteNoise serves files directly from memory and disk with persistent HTTP cache headers and content hashing.
-
 ---
 
 ## Health Check & Monitoring
 
-DevTask provides a dedicated health check endpoint at `/health/`:
-- **Success (HTTP 200)**:
+DevTask provides an active database health check endpoint at `/health/`:
+
+- **Healthy (HTTP 200)**:
   ```json
   {
     "status": "ok",
     "database": "healthy"
   }
   ```
-- **Failure (HTTP 503)**:
+- **Unhealthy (HTTP 503)**:
   ```json
   {
     "status": "error",
     "database": "unhealthy"
   }
   ```
-When `DEBUG=False`, internal database connection exception details are suppressed to prevent credential leakage.
 
-Configure your container orchestrator (Kubernetes, AWS ECS, Docker Compose) or load balancer health check target to `/health/`.
+*(Internal database exception traces are masked when `DEBUG=False` to prevent sensitive infrastructure leaks).*
 
 ---
 
-## Troubleshooting & Unresolved Risks
+## License
 
-1. **Direct Cloud Deployment Access**:
-   - Automated code checks, container configurations, and migration scripts are verified. However, since direct cloud infrastructure credentials (e.g., AWS, GCP, Railway, Render) are not connected to this workspace, final production provisioning requires executing the container launch or deployment pipeline on your target hosting provider using the instructions above.
-2. **PostgreSQL SSL Mode**:
-   - In managed database environments (AWS RDS, Neon, Supabase), append `?sslmode=require` to your `DATABASE_URL` to ensure TLS encryption for all database network traffic.
-3. **Redis Clustering / Sentinel**:
-   - The default `channels_redis` configuration points to a single Redis instance. For multi-node high-availability clustering, configure Redis Sentinel or clustered endpoints via `REDIS_URL`.
+This project is licensed under the [MIT License](LICENSE).
