@@ -1,5 +1,6 @@
 """Root URL Configuration for DevTask."""
 
+from django.conf import settings
 from django.contrib import admin
 from django.db import connection
 from django.http import JsonResponse
@@ -13,17 +14,17 @@ from drf_spectacular.views import (
 
 def health_check(request):
     """Deployment health check endpoint verifying database connectivity."""
-    status = {"status": "ok", "database": "unknown"}
+    status = {"status": "ok", "database": "healthy"}
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             cursor.fetchone()
-        status["database"] = "ok"
         return JsonResponse(status, status=200)
     except Exception as exc:
         status["status"] = "error"
-        status["database"] = f"unhealthy: {str(exc)}"
+        status["database"] = f"unhealthy: {str(exc)}" if settings.DEBUG else "unhealthy"
         return JsonResponse(status, status=503)
+
 
 
 urlpatterns = [

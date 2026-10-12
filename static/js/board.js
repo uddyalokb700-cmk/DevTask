@@ -478,8 +478,13 @@ function initWebSocket() {
       } catch (err) {}
     };
 
-    socket.onclose = () => {
-      // Reconnect after delay
+    socket.onclose = (e) => {
+      // Avoid reconnect storms if rejected due to authentication (4001) or unauthorized project access (4003)
+      if (e.code === 4001 || e.code === 4003) {
+        console.warn(`[DevTask WS] Connection closed with code ${e.code} (${e.code === 4001 ? 'Unauthenticated' : 'Unauthorized'}). Auto-reconnect aborted.`);
+        return;
+      }
+      // Reconnect after delay on transient disconnections
       setTimeout(() => {
         if (document.getElementById('currentProjectId')) initWebSocket();
       }, 5000);

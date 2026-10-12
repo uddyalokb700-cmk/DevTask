@@ -28,14 +28,15 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy project code
 COPY . /app/
 
-# Set file permissions
-RUN chown -R devtask:devtask /app
+# Set file permissions and ensure entrypoint is executable
+RUN chmod +x /app/docker-entrypoint.sh && \
+    chown -R devtask:devtask /app
 
 # Switch to non-root user
 USER devtask
 
-# Collect static assets
-RUN python manage.py collectstatic --noinput
+# Collect static assets without requiring production secrets at build time
+RUN BUILDING_IMAGE=1 python manage.py collectstatic --noinput
 
 # Expose port
 EXPOSE 8000
@@ -44,5 +45,9 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health/ || exit 1
 
-# Start server using ASGI/WSGI
+# Database migrations on startup followed by server execution
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+# Start server using Daphne ASGI server
 CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
+

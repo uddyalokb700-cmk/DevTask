@@ -165,10 +165,9 @@ SPECTACULAR_SETTINGS = {
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
-    "ENUM_NAME_OVERRIDES": {
-        "Role883Enum": "projects.models.ProjectMembership.Role",
-    },
 }
+
+SILENCED_SYSTEM_CHECKS = ["drf_spectacular.W001"]
 
 # Channels & Redis configuration
 REDIS_URL = os.getenv("REDIS_URL")

@@ -10,12 +10,13 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-super-secure-production-secret-key-32chars}
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,web
-      DATABASE_URL: postgresql://devtask_user:devtask_secret@db:5432/devtask_db
-      REDIS_URL: redis://redis:6379/0
-      DJANGO_SECURE_SSL_REDIRECT: "False"
-      DJANGO_SESSION_COOKIE_SECURE: "False"
-      DJANGO_CSRF_COOKIE_SECURE: "False"
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,web}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-devtask_user}:${POSTGRES_PASSWORD:-devtask_secret}@db:5432/${POSTGRES_DB:-devtask_db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-False}
+      DJANGO_SESSION_COOKIE_SECURE: ${DJANGO_SESSION_COOKIE_SECURE:-False}
+      DJANGO_CSRF_COOKIE_SECURE: ${DJANGO_CSRF_COOKIE_SECURE:-False}
     depends_on:
       db:
         condition: service_healthy
@@ -27,15 +28,15 @@ services:
     container_name: devtask_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: devtask_db
-      POSTGRES_USER: devtask_user
-      POSTGRES_PASSWORD: devtask_secret
+      POSTGRES_DB: ${POSTGRES_DB:-devtask_db}
+      POSTGRES_USER: ${POSTGRES_USER:-devtask_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devtask_secret}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U devtask_user -d devtask_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-devtask_user} -d ${POSTGRES_DB:-devtask_db}"]
       interval: 5s
       timeout: 5s
       retries: 5

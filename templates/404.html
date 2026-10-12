@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block title %}Page Not Found — DevTask{% endblock %}
+
+{% block content %}
+<div class="container py-5 text-center my-auto">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="display-1 fw-bold text-primary mb-3">404</div>
+      <h2 class="h3 fw-semibold text-light mb-3">Page or Workspace Not Found</h2>
+      <p class="text-secondary mb-4">
+        The workspace, task, or page you are looking for does not exist, has been archived, or you may not have authorization to view it.
+      </p>
+      <div class="d-flex justify-content-center gap-3">
+        <a href="{% url 'projects:dashboard' %}" class="btn btn-primary px-4">
+          <i class="bi bi-speedometer2 me-2"></i>Return to Dashboard
+        </a>
+        <a href="{% url 'projects:projects-list' %}" class="btn btn-outline-secondary px-4">
+          <i class="bi bi-folder2-open me-2"></i>View Projects
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
